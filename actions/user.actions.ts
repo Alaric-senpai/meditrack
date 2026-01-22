@@ -12,7 +12,8 @@ import { UserRole } from "@/lib/utils";
 export const createUserRecord = async (
     userId: string,
     email: string,
-    name: string
+    name: string,
+    role: string = "patient" // Default to patient role
 ) => {
     const { tables } = await createAdminSession();
 
@@ -25,15 +26,12 @@ export const createUserRecord = async (
                 userId: userId,
                 name: name,
                 email: email,
-                role: "client" // Default role
+                role: role
             }
         });
-        return { success: true };
+        return { success: true, role };
     } catch (error) {
         console.error("Failed to create user record:", error);
-        // We don't throw here to avoid failing the whole auth process if just the DB record fails? 
-        // Actually we probably should throw or handle it. 
-        // For now returning false.
         throw error;
     }
 }
@@ -59,10 +57,10 @@ export const getUserRole = async (userId: string) => {
 }
 
 
-export const listAllUsers = async(limit:number=25, offset:number=0)=>{
+export const listAllUsers = async (limit: number = 25, offset: number = 0) => {
     try {
-        
-        const {tables}= await createClientSession()
+
+        const { tables } = await createClientSession()
 
         const users = await tables.listRows({
             databaseId: appwritecfg.databaseId,
@@ -70,10 +68,10 @@ export const listAllUsers = async(limit:number=25, offset:number=0)=>{
             queries: [Query.limit(limit), Query.offset(offset)]
         })
 
-        if(users){
+        if (users) {
             return {
                 success: true,
-                users:users.rows,
+                users: users.rows,
                 total: users.total
             }
         }

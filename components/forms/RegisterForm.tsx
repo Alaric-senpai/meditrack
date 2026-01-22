@@ -15,42 +15,48 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { SocialLogin } from "./SocialLogin"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
 
 type Schema = z.infer<typeof RegisterformSchema>;
 
+/**
+ * Public signup form - Only for PATIENT registration
+ * Staff accounts (doctor, nurse, lab-tech, pharmacist, admin) are created by admins
+ */
 export function SignupForm() {
+  const router = useRouter();
 
-const router = useRouter();
-const form = useForm<Schema>({
-  resolver: zodResolver(RegisterformSchema as any),
-  defaultValues: {
-    name: "",
-    email: "",
-    password: "",
-    "confirm-password": "",
-    agree: true
-  }
-})
-const formAction = useAction(RegisterserverAction, {
-  onSuccess: (data) => {
-    form.reset();
-    // Redirect to login after 2 seconds
-    setTimeout(() => {
-      router.push('/login?registered=true');
-    }, 2000);
-  },
-  onError: () => {
-  // TODO: show error message
-  },
-});
-const handleSubmit = form.handleSubmit(async (data: Schema) => {
-    formAction.execute(data);
+  const form = useForm<Schema>({
+    resolver: zodResolver(RegisterformSchema as any),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      "confirm-password": "",
+      role: "patient", // Always patient for public registration
+      agree: true
+    }
   });
 
-const { isExecuting, hasSucceeded, result } = formAction;
+  const formAction = useAction(RegisterserverAction, {
+    onSuccess: () => {
+      form.reset();
+    },
+    onError: () => {
+      // TODO: show error message
+    },
+  });
+
+  const handleSubmit = form.handleSubmit(async (data: Schema) => {
+    // Force patient role for public registration
+    formAction.execute({ ...data, role: "patient" });
+  });
+
+  const { isExecuting, hasSucceeded } = formAction;
+
+  // Success state
   if (hasSucceeded) {
-    return (<div className="p-8 w-full max-w-md rounded-2xl border bg-card/50 backdrop-blur-sm shadow-xl dark:shadow-primary/5">
+    return (
+      <div className="p-8 w-full max-w-md rounded-2xl border bg-card/50 backdrop-blur-sm shadow-xl dark:shadow-primary/5">
         <motion.div
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -74,40 +80,41 @@ const { isExecuting, hasSucceeded, result } = formAction;
             Account Created!
           </h2>
           <p className="text-center text-base text-muted-foreground">
-            Your account has been successfully created
+            Your patient account has been successfully created
           </p>
-            <p className="text-center text-base text-primary mt-3">
-              Redirecting to login page...
-          </p>
-        </motion.div>
-      </div>)
-  }
-return (
-      <form onSubmit={handleSubmit} className="p-6 sm:p-8 w-full max-w-md relative border bg-card/50 dark:bg-card/30 backdrop-blur-sm rounded-2xl shadow-xl dark:shadow-primary/10 mx-auto">
-        <FieldGroup className="grid gap-5 mb-6">
-          <div className="text-center space-y-2 mb-2">
-            <h1 className="font-bold text-3xl tracking-tight">Create Account</h1>
-            <p className="text-muted-foreground text-sm">Sign up to get started</p>
+          <div className="mt-6 flex flex-col gap-3">
+            <Button onClick={() => router.push('/login')} className="w-full">
+              Continue to Login
+            </Button>
           </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="p-6 sm:p-8 w-full max-w-md relative border bg-card/50 dark:bg-card/30 backdrop-blur-sm rounded-2xl shadow-xl dark:shadow-primary/10 mx-auto">
+      <FieldGroup className="grid gap-5 mb-6">
+        <div className="text-center space-y-2 mb-2">
+          <h1 className="font-bold text-3xl tracking-tight">Patient Registration</h1>
+          <p className="text-muted-foreground text-sm">Create your patient account to get started</p>
+        </div>
 
         <Controller
           name="name"
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid} className="gap-2">
-            <FieldLabel htmlFor="name" className="text-sm font-medium">Full Name</FieldLabel>
+              <FieldLabel htmlFor="name" className="text-sm font-medium">Full Name</FieldLabel>
               <Input
                 {...field}
                 id="name"
                 type="text"
-                onChange={(e) => {
-                field.onChange(e.target.value)
-                }}
+                onChange={(e) => field.onChange(e.target.value)}
                 aria-invalid={fieldState.invalid}
                 placeholder="John Doe"
                 className="h-11"
               />
-              
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}
@@ -118,27 +125,24 @@ return (
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid} className="gap-2">
-            <FieldLabel htmlFor="email" className="text-sm font-medium">Email</FieldLabel>
+              <FieldLabel htmlFor="email" className="text-sm font-medium">Email</FieldLabel>
               <Input
                 {...field}
                 id="email"
-                type="text"
-                onChange={(e) => {
-                field.onChange(e.target.value)
-                }}
+                type="email"
+                onChange={(e) => field.onChange(e.target.value)}
                 aria-invalid={fieldState.invalid}
                 placeholder="you@example.com"
                 className="h-11"
               />
-              
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}
         />
 
-        <Controller 
-          name="password" 
-          control={form.control} 
+        <Controller
+          name="password"
+          control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid} className="gap-2">
               <FieldLabel htmlFor="password" className="text-sm font-medium">Password</FieldLabel>
@@ -151,11 +155,12 @@ return (
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
-        )} />
+          )}
+        />
 
-        <Controller 
-          name="confirm-password" 
-          control={form.control} 
+        <Controller
+          name="confirm-password"
+          control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid} className="gap-2">
               <FieldLabel htmlFor="confirm-password" className="text-sm font-medium">Confirm Password</FieldLabel>
@@ -168,9 +173,11 @@ return (
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
-        )} />
-<Controller
-          name="agree" 
+          )}
+        />
+
+        <Controller
+          name="agree"
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid} className="gap-2">
@@ -194,18 +201,27 @@ return (
           )}
         />
 
-<SocialLogin mode="signup" />
-          </FieldGroup>
-          
-          <Button className="w-full h-11 rounded-lg shadow-lg bg-linear-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary dark:shadow-primary/20 font-medium" type="submit" disabled={isExecuting}>
-            {isExecuting ? 'Creating account...' : 'Create Account'}
-          </Button>
+        {/* <SocialLogin mode="signup" /> */}
+      </FieldGroup>
 
-          <p className="text-center text-sm text-muted-foreground mt-4">
-            Already have an account?{' '}
-            <Link href="/login" className="text-primary hover:underline font-medium">
-              Sign in
-            </Link>
-          </p>
-      </form>
-)}
+      <Button
+        className="w-full h-11 rounded-lg shadow-lg bg-linear-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary dark:shadow-primary/20 font-medium"
+        type="submit"
+        disabled={isExecuting}
+      >
+        {isExecuting ? 'Creating account...' : 'Create Patient Account'}
+      </Button>
+
+      <p className="text-center text-sm text-muted-foreground mt-4">
+        Already have an account?{' '}
+        <Link href="/login" className="text-primary hover:underline font-medium">
+          Sign in
+        </Link>
+      </p>
+
+      <p className="text-center text-xs text-muted-foreground mt-3">
+        Healthcare staff accounts are created by administrators
+      </p>
+    </form>
+  );
+}

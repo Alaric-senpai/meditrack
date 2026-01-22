@@ -32,12 +32,27 @@ const formAction = useAction(LoginserverAction, {
   onSuccess: (data) => {
     form.reset();
     // Redirect to respective dashboard based on role
-    const role = data?.data?.role;
+    // @ts-expect-error
+    const role = data?.data?.data?.role || data?.data?.role;
     setTimeout(() => {
-      if (role === 'admin') {
-        router.push('/admin');
-      } else {
-        router.push('/dashboard');
+      switch (role) {
+        case 'admin':
+          router.push('/admin');
+          break;
+        case 'doctor':
+        case 'nurse':
+          router.push('/clinician');
+          break;
+        case 'lab-tech':
+          router.push('/lab');
+          break;
+        case 'pharmacist':
+          router.push('/pharmacy');
+          break;
+        case 'patient':
+        default:
+          router.push('/dashboard');
+          break;
       }
     }, 1500);
   },
@@ -131,12 +146,18 @@ return (
             </Field>
         )} />
 
-<SocialLogin mode="login" />
+{/* <SocialLogin mode="login" /> */}
           </FieldGroup>
           
           <Button className="w-full h-11 rounded-lg shadow-lg bg-linear-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary dark:shadow-primary/20 font-medium" type="submit" disabled={isExecuting}>
             {isExecuting ? 'Signing in...' : 'Sign In'}
           </Button>
+
+          <div className="text-center mt-3">
+            <Link href="/forgot-password" className="text-sm text-muted-foreground hover:text-primary">
+              Forgot your password?
+            </Link>
+          </div>
 
           <p className="text-center text-sm text-muted-foreground mt-4">
             Don't have an account?{' '}

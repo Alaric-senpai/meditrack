@@ -5,10 +5,14 @@ import { createContext, useContext, useEffect, useMemo, useState, useCallback } 
 import { getCurrentUser, Logout, validateSession } from '@/actions/auth.actions';
 import { getSessionStatus, checkAndManageSession } from '@/lib/session-manager';
 import { useRouter, usePathname } from 'next/navigation';
+import { MedicalRole, parseRole, getDefaultRouteForRole } from '@/lib/rbac';
+
+// Medical role type for the auth context
+type AuthRole = MedicalRole | 'client';
 
 interface AuthContextType {
     user: Models.User | null;
-    role: 'admin' | 'client';
+    role: AuthRole;
     isLoading: boolean;
     isAuthenticated: boolean;
     sessionExpiry: Date | null;
@@ -31,7 +35,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-    const [role, setUserRole] = useState<'admin' | 'client'>('client');
+    const [role, setUserRole] = useState<AuthRole>(MedicalRole.PATIENT);
     const [user, setUser] = useState<Models.User | null>(null);
     const [sessionExpiry, setSessionExpiry] = useState<Date | null>(null);
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
@@ -50,13 +54,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 setUser(result.user);
                 setIsAuthenticated(true);
                 
-                // Determine user role from prefs or default
-                const userRole = (result.user.prefs?.role as 'admin' | 'client') || 'client';
+                // Determine user role from prefs using parseRole
+                const userRole = parseRole(result.user.prefs?.role as string);
                 setUserRole(userRole);
             } else {
                 setUser(null);
                 setIsAuthenticated(false);
-                setUserRole('client');
+                setUserRole(MedicalRole.PATIENT);
             }
         } catch (error) {
             console.error('Failed to refresh user:', error);
@@ -108,7 +112,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
             setUser(null);
             setIsAuthenticated(false);
-            setUserRole('client');
+            setUserRole(MedicalRole.PATIENT);
             setSessionExpiry(null);
             setTimeRemaining(null);
             
