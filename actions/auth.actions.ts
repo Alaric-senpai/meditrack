@@ -1,4 +1,5 @@
 "use server";
+
 import { actionClient } from "./safe-action";
 import { RegisterformSchema, LoginformSchema } from "../lib/form-schema";
 import { createAdminSession, createClientSession } from "@/server/clients";
@@ -9,8 +10,10 @@ import { createUserRecord, getUserRole } from "./user.actions";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import * as z from "zod";
-import { UserRole } from "@/lib/utils";
+import { UserRole as roles } from "@/lib/utils";
 import { authConfig } from "@/config/app.config";
+import { sendWelcomeEmail } from "./mail.actions";
+import { withRetry } from "@/config/helpers/retry.helpers";
 
 export const RegisterserverAction = actionClient
   .inputSchema(RegisterformSchema)
@@ -22,14 +25,22 @@ export const RegisterserverAction = actionClient
       const { accounts } = await createAdminSession();
 
       // 2. Create Auth User
-      const user = await accounts.create(ID.unique(), email, password, name);
+      const user = await withRetry(
+        () => accounts.create({ userId: ID.unique(), email, password, name }),
+        3,
+        2000,
+        "Register User"
+      );
 
       // 3. Create User Document with role (Delegated to user.actions)
       const userRole = role || "patient";
       await createUserRecord(user.$id, email, name, userRole);
 
-      // 4. Set role cookie for the new user
-      await setRoleCookie(userRole as UserRole);
+      // 4. Send Welcome Email
+      await sendWelcomeEmail({ email, userName: name });
+
+      // 5. Set role cookie for the new user
+      await setRoleCookie(userRole as roles);
 
       return {
         success: true,
@@ -56,14 +67,19 @@ export const LoginserverAction = actionClient
       const { accounts: account } = await createAdminSession();
 
       // 2. Create Session
-      const session = await account.createEmailPasswordSession({ email, password });
+      const session = await withRetry(
+        () => account.createEmailPasswordSession({ email, password }),
+        3,
+        2000,
+        "Login Session"
+      );
 
       // 3. Set Session Cookie with expiration
       await setSessionCookie(session.secret);
 
       // 4. Fetch User Role and set cookie
       const role = await getUserRole(session.userId);
-      await setRoleCookie(role as UserRole);
+      await setRoleCookie(role as roles);
 
       return {
         success: true,
@@ -71,7 +87,7 @@ export const LoginserverAction = actionClient
         data: {
           userId: session.userId,
           expire: session.expire,
-          role: role as UserRole
+          role: role as roles
         }
       };
     } catch (error: any) {
@@ -119,9 +135,14 @@ export const Logout = async () => {
   try {
     const { accounts } = await createClientSession();
 
-    await accounts.deleteSession({
-      sessionId: "current"
-    });
+    await withRetry(
+      () => accounts.deleteSession({
+        sessionId: "current"
+      }),
+      3,
+      2000,
+      "Logout Session"
+    );
 
     await deleteSessionCookie();
     await deleteRoleCookie();
@@ -152,12 +173,17 @@ export const handleGithubOauth = async () => {
     const { accounts } = await createAdminSession();
     const origin = process.env.NEXT_PUBLIC_URL || 'http://localhost:3000';
 
-    const githubAuth = await accounts.createOAuth2Token({
-      provider: OAuthProvider.Github,
-      success: `${origin}/oauth`,
-      failure: `${origin}/fail?error=github_oauth_failed`,
-      scopes: ['user', 'user:email']
-    });
+    const githubAuth = await withRetry(
+      () => accounts.createOAuth2Token({
+        provider: OAuthProvider.Github,
+        success: `${origin}/oauth`,
+        failure: `${origin}/fail?error=github_oauth_failed`,
+        scopes: ['user', 'user:email']
+      }),
+      3,
+      2000,
+      "Create Github OAuth Token"
+    );
 
     if (githubAuth) {
       return {
@@ -188,12 +214,17 @@ export const handleGoogleOauth = async () => {
     const { accounts } = await createAdminSession();
     const origin = process.env.NEXT_PUBLIC_URL || 'http://localhost:3000';
 
-    const googleAuth = await accounts.createOAuth2Token({
-      provider: OAuthProvider.Google,
-      success: `${origin}/oauth`,
-      failure: `${origin}/fail?error=google_oauth_failed`,
-      scopes: ['profile', 'email']
-    });
+    const googleAuth = await withRetry(
+      () => accounts.createOAuth2Token({
+        provider: OAuthProvider.Google,
+        success: `${origin}/oauth`,
+        failure: `${origin}/fail?error=google_oauth_failed`,
+        scopes: ['profile', 'email']
+      }),
+      3,
+      2000,
+      "Create Google OAuth Token"
+    );
 
     if (googleAuth) {
       return {
@@ -225,26 +256,41 @@ export const handleOauthCallback = async (secret: string, userId: string) => {
   try {
     const { accounts, tables } = await createAdminSession();
 
-    const session = await accounts.createSession({
-      userId,
-      secret
-    });
+    const session = await withRetry(
+      () => accounts.createSession({
+        userId,
+        secret
+      }),
+      3,
+      2000,
+      "Complete OAuth Session"
+    );
 
     if (session) {
       await setSessionCookie(session.secret);
 
       // Check if user record exists in database
       try {
-        const userDocs = await tables.listRows({
-          databaseId: appwritecfg.databaseId,
-          tableId: appwritecfg.tables.users,
-          queries: [Query.equal("userid", userId)]
-        });
+        const userDocs = await withRetry(
+          () => tables.listRows({
+            databaseId: appwritecfg.databaseId,
+            tableId: appwritecfg.tables.users,
+            queries: [Query.equal("userid", userId)]
+          }),
+          3,
+          2000,
+          "Check OAuth User Record"
+        );
 
         // If user record doesn't exist, create one
         if (!userDocs.rows || userDocs.rows.length === 0) {
           // Get user details from the session's userId
-          const userAccount = await accounts.get();
+          const userAccount = await withRetry(
+            () => accounts.get(),
+            3,
+            2000,
+            "Get OAuth User Details"
+          );
           await createUserRecord(userId, userAccount.email, userAccount.name);
         }
       } catch (dbError: any) {
@@ -253,7 +299,7 @@ export const handleOauthCallback = async (secret: string, userId: string) => {
       }
 
       const role = await getUserRole(session.userId);
-      await setRoleCookie(role as UserRole);
+      await setRoleCookie(role as roles);
 
       return {
         success: true,
@@ -284,7 +330,12 @@ export const handleOauthCallback = async (secret: string, userId: string) => {
 export const isLoggedIn = async () => {
   try {
     const { accounts } = await createClientSession();
-    const user = await accounts.get();
+    const user = await withRetry(
+      () => accounts.get(),
+      3,
+      2000,
+      "Check Login Status"
+    );
 
     return !!(user && user.$id);
   } catch (error) {
@@ -298,7 +349,12 @@ export const isLoggedIn = async () => {
 export const getCurrentUser = async () => {
   try {
     const { accounts } = await createClientSession();
-    const user = await accounts.get();
+    const user = await withRetry(
+      () => accounts.get(),
+      3,
+      2000,
+      "Get Current User"
+    );
 
     if (!user) {
       return {
@@ -326,11 +382,11 @@ export const getCurrentUser = async () => {
 /**
  * Check if user matches a specific role
  */
-export const userMatchesRole = async (role: UserRole) => {
+export const userMatchesRole = async (role: roles) => {
   const savedRole = await getRoleCookie();
 
   if (savedRole) {
-    return savedRole as UserRole === role;
+    return savedRole as roles === role;
   }
   return false;
 };
@@ -349,7 +405,12 @@ export const validateSession = async (): Promise<boolean> => {
 
     // Try to get user with current session
     const { accounts } = await createClientSession();
-    const user = await accounts.get();
+    const user = await withRetry(
+      () => accounts.get(),
+      3,
+      2000,
+      "Validate Session User"
+    );
 
     if (user && user.$id) {
       return true;
@@ -375,7 +436,12 @@ export const validateSession = async (): Promise<boolean> => {
 export const getSessionExpiry = async () => {
   try {
     const { accounts } = await createClientSession();
-    const session = await accounts.getSession('current');
+    const session = await withRetry(
+      () => accounts.getSession('current'),
+      3,
+      2000,
+      "Get Current Session"
+    );
 
     if (session) {
       const expireDate = new Date(session.expire);
@@ -411,7 +477,12 @@ export const extendSession = async () => {
     const { accounts } = await createClientSession();
 
     // Get current session
-    const currentSession = await accounts.getSession('current');
+    const currentSession = await withRetry(
+      () => accounts.getSession('current'),
+      3,
+      2000,
+      "Get Session for Extension"
+    );
 
     if (!currentSession) {
       return {
@@ -421,9 +492,14 @@ export const extendSession = async () => {
     }
 
     // Update session to extend its lifetime
-    const updatedSession = await accounts.updateSession({
-      sessionId: 'current'
-    });
+    const updatedSession = await withRetry(
+      () => accounts.updateSession({
+        sessionId: 'current'
+      }),
+      3,
+      2000,
+      "Extend Session"
+    );
 
     if (updatedSession) {
       // Update session cookie with new secret if it changed
@@ -457,7 +533,12 @@ export const extendSession = async () => {
 export const listActiveSessions = async () => {
   try {
     const { accounts } = await createClientSession();
-    const sessions = await accounts.listSessions();
+    const sessions = await withRetry(
+      () => accounts.listSessions(),
+      3,
+      2000,
+      "List Active Sessions"
+    );
 
     return {
       success: true,
@@ -482,9 +563,14 @@ export const deleteSessionById = async (sessionId: string) => {
   try {
     const { accounts } = await createClientSession();
 
-    await accounts.deleteSession({
-      sessionId
-    });
+    await withRetry(
+      () => accounts.deleteSession({
+        sessionId
+      }),
+      3,
+      2000,
+      "Delete Session by ID"
+    );
 
     // If deleting current session, clear cookies
     if (sessionId === 'current') {
@@ -511,7 +597,12 @@ export const deleteSessionById = async (sessionId: string) => {
 export const getLinkedIdentities = async () => {
   try {
     const { accounts } = await createClientSession();
-    const identities = await accounts.listIdentities();
+    const identities = await withRetry(
+      () => accounts.listIdentities(),
+      3,
+      2000,
+      "List Linked Identities"
+    );
 
     return {
       success: true,
@@ -536,9 +627,14 @@ export const unlinkIdentity = async (identityId: string) => {
   try {
     const { accounts } = await createClientSession();
 
-    await accounts.deleteIdentity({
-      identityId
-    });
+    await withRetry(
+      () => accounts.deleteIdentity({
+        identityId
+      }),
+      3,
+      2000,
+      "Unlink Identity"
+    );
 
     return {
       success: true,

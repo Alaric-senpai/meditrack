@@ -8,4 +8,4 @@ export const ROLE_COOKIE = "user_role";
 export const SESSION_COOKIE = 'user_session';
 
 
-export type UserRole = "admin"|"client"
+export type UserRole = "patient" | "doctor" | "nurse" | "lab-tech" | "pharmacist" | "admin"

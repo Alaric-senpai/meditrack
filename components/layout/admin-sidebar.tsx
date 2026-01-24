@@ -1,5 +1,4 @@
 'use client';
-
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -13,111 +12,267 @@ import {
   Crown,
   Activity,
   Database,
-  FileText
+  FileText,
+  ChevronsUpDown,
+  Bell,
+  HardDrive,
+  Lock,
+  FlaskConical,
+  Pill
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarRail,
+  useSidebar,
+  SidebarMenuSkeleton,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
+} from '@/components/ui/sidebar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+    DropdownMenuGroup,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
-interface SidebarItem {
-  title: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-const adminMenuItems: SidebarItem[] = [
+const sidebarGroups = [
   {
-    title: 'Dashboard',
-    href: '/admin',
-    icon: LayoutDashboard,
+    label: "Core",
+    items: [
+      {
+        title: 'Dashboard',
+        href: '/admin',
+        icon: LayoutDashboard,
+      },
+    ]
   },
   {
-    title: 'Users',
-    href: '/admin/users',
-    icon: Users,
+    label: "Clinical Services",
+    items: [
+      {
+        title: 'Departments',
+        href: '/admin/departments',
+        icon: Database,
+      },
+      {
+        title: 'Doctors',
+        href: '/admin/doctors',
+        icon: Shield,
+      },
+      {
+        title: 'Nurses',
+        href: '/admin/nurses',
+        icon: Activity,
+      },
+      {
+        title: 'Lab Technicians',
+        href: '/admin/lab-technicians',
+        icon: FlaskConical,
+      },
+      {
+        title: 'Pharmacists',
+        href: '/admin/pharmacists',
+        icon: Pill,
+      },
+    ]
   },
   {
-    title: 'Analytics',
-    href: '/admin/analytics',
-    icon: Activity,
+    label: "User Management",
+    items: [
+       {
+        title: 'Patients',
+        href: '/admin/patients',
+        icon: Users,
+      },
+      {
+        title: 'All Users',
+        href: '/admin/users',
+        icon: Users,
+      },
+    ]
   },
   {
-    title: 'Database',
-    href: '/admin/database',
-    icon: Database,
-  },
-  {
-    title: 'Logs',
-    href: '/admin/logs',
-    icon: FileText,
-  },
-  {
-    title: 'Settings',
-    href: '/admin/settings',
-    icon: Settings,
-  },
+    label: "System & Records",
+    items: [
+      {
+        title: 'Audit Logs',
+        href: '/admin/logs',
+        icon: FileText,
+      },
+      {
+        title: 'System Settings',
+        href: '/admin/settings',
+        icon: Settings,
+      },
+    ]
+  }
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
 
   return (
-    <aside className="w-64 h-screen bg-card border-r border-border flex flex-col">
-      {/* Header */}
-      <div className="p-6 border-b border-border">
-        <div className="flex items-center gap-2 mb-2">
-          <Crown className="w-5 h-5 text-yellow-500" />
-          <h2 className="text-lg font-semibold">Admin Panel</h2>
-        </div>
-        {user && (
-          <div className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-            <div className="flex items-center gap-2 mb-1">
-              <Shield className="w-4 h-4 text-yellow-600 dark:text-yellow-500" />
-              <span className="text-sm font-medium truncate">{user.name}</span>
-            </div>
-            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-            <div className="mt-2 px-2 py-1 bg-yellow-500/20 rounded text-xs font-medium text-yellow-700 dark:text-yellow-400 inline-block">
-              Administrator
-            </div>
-          </div>
+    <Sidebar variant="inset" collapsible="icon" className="border-r-0" {...props}>
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild>
+              <Link href="/admin">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-amber-500 text-white">
+                  <Crown className="size-5" />
+                </div>
+                <div className="flex flex-col gap-0.5 leading-none">
+                  <span className="font-bold text-base tracking-tight text-amber-900 dark:text-amber-100">MediTrack Panel</span>
+                  <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Administration</span>
+                </div>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+
+      <SidebarContent>
+        {isLoading ? (
+           <SidebarMenu className="gap-2 px-2">
+             {Array.from({ length: 8 }).map((_, index) => (
+                <SidebarMenuItem key={index}>
+                    <SidebarMenuSkeleton showIcon />
+                </SidebarMenuItem>
+             ))}
+           </SidebarMenu>
+        ) : (
+          sidebarGroups.map((group) => (
+            <SidebarGroup key={group.label}>
+              <SidebarGroupLabel className="px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                {group.label}
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-1">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = pathname === item.href;
+                    return (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton 
+                          asChild 
+                          isActive={isActive} 
+                          tooltip={item.title}
+                          className={cn(
+                            "transition-all duration-200 ease-in-out px-3",
+                            isActive 
+                               ? "bg-amber-100 text-amber-700 shadow-sm dark:bg-amber-900/30 dark:text-amber-300 font-semibold" 
+                               : "hover:bg-amber-50 text-slate-600 dark:text-slate-400 dark:hover:bg-slate-800"
+                          )}
+                        >
+                          <Link href={item.href} className="flex items-center gap-3">
+                            <Icon className={cn("size-4", isActive ? "stroke-[2.5px]" : "stroke-2")} />
+                            <span className="text-sm">{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ))
         )}
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {adminMenuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
-          
-          return (
-            <Link key={item.href} href={item.href}>
-              <div
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
-                  'hover:bg-accent hover:text-accent-foreground',
-                  isActive && 'bg-accent text-accent-foreground font-medium'
-                )}
-              >
-                <Icon className="w-5 h-5" />
-                <span className="flex-1">{item.title}</span>
-                {isActive && <ChevronRight className="w-4 h-4" />}
-              </div>
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Footer */}
-      <div className="p-4 border-t border-border">
-        <Button
-          variant="outline"
-          className="w-full justify-start gap-2"
-          onClick={() => logout()}
-        >
-          <LogOut className="w-4 h-4" />
-          Logout
-        </Button>
-      </div>
-    </aside>
+      </SidebarContent>
+      
+      <SidebarFooter className="border-t border-border/50 p-2">
+          {user ? (
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <SidebarMenuButton
+                        size="lg"
+                        className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        >
+                        <Avatar className="h-8 w-8 rounded-lg border border-border/50">
+                             <AvatarImage src={user.prefs?.avatar as string} alt={user.name} />
+                            <AvatarFallback className="rounded-lg bg-amber-100 text-amber-700 font-bold">
+                                {user.name?.charAt(0) || 'A'}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className="grid flex-1 text-left text-sm leading-tight">
+                            <span className="truncate font-semibold">{user.name}</span>
+                            <span className="truncate text-xs text-amber-600 font-medium">Administrator</span>
+                        </div>
+                        <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" />
+                        </SidebarMenuButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                        className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg border-border shadow-lg"
+                        side="bottom"
+                        align="end"
+                        sideOffset={4}
+                    >
+                        <DropdownMenuLabel className="p-0 font-normal">
+                        <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                            <Avatar className="h-8 w-8 rounded-lg">
+                            <AvatarImage src={user.prefs?.avatar as string} alt={user.name} />
+                            <AvatarFallback className="rounded-lg">
+                                {user.name?.charAt(0)}
+                            </AvatarFallback>
+                            </Avatar>
+                            <div className="grid flex-1 text-left text-sm leading-tight">
+                            <span className="truncate font-semibold">{user.name}</span>
+                            <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+                            </div>
+                        </div>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuGroup>
+                          <DropdownMenuItem>
+                            <HardDrive className="mr-2 size-4" />
+                            <span>System Settings</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                             <Users className="mr-2 size-4" />
+                             <span>User Management</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuGroup>
+                          <DropdownMenuItem>
+                            <Lock className="mr-2 size-4" />
+                            <span>Audit Logs</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Bell className="mr-2 size-4" />
+                            <span>Notifications</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                         <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => logout()}>
+                        <LogOut className="mr-2 size-4" />
+                        Log out
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          ) : (
+            <div className="flex items-center justify-center p-2 text-sm text-muted-foreground">
+               loading...
+            </div>
+          )}
+      </SidebarFooter>
+      <SidebarRail />
+    </Sidebar>
   );
 }

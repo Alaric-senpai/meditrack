@@ -1,4 +1,4 @@
-'use server';
+"use server";
 
 import { actionClient } from "./safe-action";
 import { patientProfileSchema } from "@/lib/medical-validation";
@@ -8,35 +8,38 @@ import { ID, Query } from "node-appwrite";
 import { logAuditEvent, AuditAction } from "@/lib/audit-logger";
 import { MedicalRoles } from "@/lib/medical-schema";
 import { z } from "zod";
+import { withRetry } from "@/config/helpers/retry.helpers";
 
 /**
  * PATIENT MANAGEMENT
  */
 
 export const createPatientAction = actionClient
-  .schema(patientProfileSchema.extend({ userId: z.string() }))
+  .inputSchema(patientProfileSchema.extend({ userId: z.string() }))
   .action(async ({ parsedInput }) => {
     try {
       const session = await createAdminSession();
-      
-      const now = new Date().toISOString();
+
       const patientData = {
         ...parsedInput,
-        createdAt: now,
-        updatedAt: now,
         status: "active",
       };
 
-      const document = await session.tables.createDocument(
-        appwritecfg.databaseId,
-        appwritecfg.tables.patients,
-        ID.unique(),
-        patientData
+      const document = await withRetry(
+        () => session.tables.createRow(
+          appwritecfg.databaseId,
+          appwritecfg.tables.patients,
+          ID.unique(),
+          patientData
+        ),
+        3,
+        2000,
+        "Create Patient"
       );
 
       // Audit log
       await logAuditEvent({
-        userId: "system", 
+        userId: "system",
         userRole: MedicalRoles.ADMIN,
         action: AuditAction.PATIENT_CREATED,
         resourceType: "patient",
@@ -59,10 +62,15 @@ export const getPatientByIdAction = actionClient
   .action(async ({ parsedInput }) => {
     try {
       const session = await createAdminSession();
-      const document = await session.tables.getDocument(
-        appwritecfg.databaseId,
-        appwritecfg.tables.patients,
-        parsedInput.patientId
+      const document = await withRetry(
+        () => session.tables.getRow(
+          appwritecfg.databaseId,
+          appwritecfg.tables.patients,
+          parsedInput.patientId
+        ),
+        3,
+        2000,
+        "Get Patient by ID"
       );
 
       return { success: true, data: document };
@@ -94,10 +102,15 @@ export const listPatientsAction = actionClient
         ]));
       }
 
-      const result = await session.tables.listDocuments(
-        appwritecfg.databaseId,
-        appwritecfg.tables.patients,
-        queries
+      const result = await withRetry(
+        () => session.tables.listRows(
+          appwritecfg.databaseId,
+          appwritecfg.tables.patients,
+          queries
+        ),
+        3,
+        2000,
+        "List Patients"
       );
 
       return { success: true, data: result };
@@ -114,11 +127,16 @@ export const updatePatientAction = actionClient
   .action(async ({ parsedInput }) => {
     try {
       const session = await createAdminSession();
-      
-      const oldDoc = await session.tables.getDocument(
-        appwritecfg.databaseId,
-        appwritecfg.tables.patients,
-        parsedInput.patientId
+
+      const oldDoc = await withRetry(
+        () => session.tables.getRow(
+          appwritecfg.databaseId,
+          appwritecfg.tables.patients,
+          parsedInput.patientId
+        ),
+        3,
+        2000,
+        "Get Patient for Update"
       );
 
       const updateData = {
@@ -126,11 +144,16 @@ export const updatePatientAction = actionClient
         updatedAt: new Date().toISOString(),
       };
 
-      const document = await session.tables.updateDocument(
-        appwritecfg.databaseId,
-        appwritecfg.tables.patients,
-        parsedInput.patientId,
-        updateData
+      const document = await withRetry(
+        () => session.tables.updateRow(
+          appwritecfg.databaseId,
+          appwritecfg.tables.patients,
+          parsedInput.patientId,
+          updateData
+        ),
+        3,
+        2000,
+        "Update Patient"
       );
 
       await logAuditEvent({
@@ -168,7 +191,7 @@ export const createVisitAction = actionClient
     try {
       const session = await createAdminSession();
       const now = new Date().toISOString();
-      
+
       const visitData = {
         ...parsedInput,
         visitDate: now,
@@ -178,11 +201,16 @@ export const createVisitAction = actionClient
         updatedAt: now,
       };
 
-      const document = await session.tables.createDocument(
-        appwritecfg.databaseId,
-        appwritecfg.tables.visits,
-        ID.unique(),
-        visitData
+      const document = await withRetry(
+        () => session.tables.createRow(
+          appwritecfg.databaseId,
+          appwritecfg.tables.visits,
+          ID.unique(),
+          visitData
+        ),
+        3,
+        2000,
+        "Create Visit"
       );
 
       await logAuditEvent({
@@ -225,10 +253,10 @@ export const recordVitalsAction = actionClient
       const session = await createAdminSession();
       const now = new Date().toISOString();
 
-      const isAbnormal = 
-        parsedInput.bloodPressureSystolic > 140 || 
+      const isAbnormal =
+        parsedInput.bloodPressureSystolic > 140 ||
         parsedInput.bloodPressureSystolic < 90 ||
-        parsedInput.heartRate > 100 || 
+        parsedInput.heartRate > 100 ||
         parsedInput.heartRate < 60 ||
         parsedInput.temperature > 38 ||
         parsedInput.oxygenSaturation < 95;
@@ -241,19 +269,29 @@ export const recordVitalsAction = actionClient
         updatedAt: now,
       };
 
-      const document = await session.tables.createDocument(
-        appwritecfg.databaseId,
-        appwritecfg.tables.vitals,
-        ID.unique(),
-        vitalsData
+      const document = await withRetry(
+        () => session.tables.createRow(
+          appwritecfg.databaseId,
+          appwritecfg.tables.vitals,
+          ID.unique(),
+          vitalsData
+        ),
+        3,
+        2000,
+        "Record Vitals"
       );
 
       if (parsedInput.visitId) {
-        await session.tables.updateDocument(
-          appwritecfg.databaseId,
-          appwritecfg.tables.visits,
-          parsedInput.visitId,
-          { vitalsSigned: true }
+        await withRetry(
+          () => session.tables.updateRow(
+            appwritecfg.databaseId,
+            appwritecfg.tables.visits,
+            parsedInput.visitId!,
+            { vitalsSigned: true }
+          ),
+          3,
+          2000,
+          "Update Visit Vitals Sign"
         );
       }
 
@@ -303,11 +341,16 @@ export const createDiagnosisAction = actionClient
         updatedAt: now,
       };
 
-      const document = await session.tables.createDocument(
-        appwritecfg.databaseId,
-        appwritecfg.tables.diagnoses,
-        ID.unique(),
-        diagnosisData
+      const document = await withRetry(
+        () => session.tables.createRow(
+          appwritecfg.databaseId,
+          appwritecfg.tables.diagnoses,
+          ID.unique(),
+          diagnosisData
+        ),
+        3,
+        2000,
+        "Create Diagnosis"
       );
 
       await logAuditEvent({
@@ -355,11 +398,16 @@ export const createPrescriptionAction = actionClient
         updatedAt: now,
       };
 
-      const document = await session.tables.createDocument(
-        appwritecfg.databaseId,
-        appwritecfg.tables.prescriptions,
-        ID.unique(),
-        prescriptionData
+      const document = await withRetry(
+        () => session.tables.createRow(
+          appwritecfg.databaseId,
+          appwritecfg.tables.prescriptions,
+          ID.unique(),
+          prescriptionData
+        ),
+        3,
+        2000,
+        "Create Prescription"
       );
 
       await logAuditEvent({
@@ -406,11 +454,16 @@ export const requestLabTestAction = actionClient
         updatedAt: now,
       };
 
-      const document = await session.tables.createDocument(
-        appwritecfg.databaseId,
-        appwritecfg.tables.labRequests,
-        ID.unique(),
-        requestData
+      const document = await withRetry(
+        () => session.tables.createRow(
+          appwritecfg.databaseId,
+          appwritecfg.tables.labRequests,
+          ID.unique(),
+          requestData
+        ),
+        3,
+        2000,
+        "Request Lab Test"
       );
 
       await logAuditEvent({

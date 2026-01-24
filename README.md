@@ -1,5 +1,5 @@
 
-![Banner](/public/banner1.png)
+![Banner](/public/banner.png)
 
 # MediTrack Pro - Clinical Operations Platform
 

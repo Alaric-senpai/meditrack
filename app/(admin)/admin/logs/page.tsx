@@ -1,32 +1,24 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText } from 'lucide-react';
+import { Suspense } from 'react';
+import { getAuditLogs } from '@/actions/admin-logs.actions';
+import { AuditLogsTable, AuditLog } from '@/components/admin/audit-logs-table';
 
-export default function AdminLogs() {
+export default async function AuditLogsPage() {
+  const { logs } = await getAuditLogs();
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <FileText className="h-8 w-8" />
+    <div className="h-full space-y-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">System Logs</h1>
-          <p className="text-muted-foreground mt-1">
-            View system logs and audit trails
-          </p>
+           <h2 className="text-2xl font-bold tracking-tight">System Audit Logs</h2>
+           <p className="text-muted-foreground">Traceability and compliance monitoring.</p>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Activity Logs</CardTitle>
-          <CardDescription>
-            View recent system activity and events
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            System logs interface coming soon...
-          </p>
-        </CardContent>
-      </Card>
+      <div className="bg-card rounded-lg border p-4 shadow-sm">
+        <Suspense fallback={<div>Loading logs...</div>}>
+          <AuditLogsTable data={logs as unknown as AuditLog[]} />
+        </Suspense>
+      </div>
     </div>
   );
 }

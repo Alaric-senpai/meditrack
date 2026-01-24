@@ -1,6 +1,9 @@
 export const appConfig = {
     url: process.env.NEXT_PUBLIC_URL!,
-    environment: process.env.NODE_ENV
+    environment: process.env.NODE_ENV,
+    resendKey: process.env.RESEND_API_KEY!,
+    resendDomain: process.env.RESEND_DOMAIN!,
+    
 
 }
 

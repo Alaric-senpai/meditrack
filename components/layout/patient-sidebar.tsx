@@ -1,5 +1,4 @@
-'use client';
-
+'use client'
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -10,13 +9,37 @@ import {
   Pill,
   FlaskConical,
   User,
-  Settings,
   LogOut,
-  ChevronRight,
   Clock,
-  Heart
+  Heart,
+  ChevronsUpDown,
+  ShieldCheck,
+  Settings,
+  CreditCard,
+  Bell
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarRail,
+  useSidebar,
+  SidebarMenuSkeleton,
+} from '@/components/ui/sidebar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+    DropdownMenuGroup,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
 interface SidebarItem {
@@ -28,7 +51,7 @@ interface SidebarItem {
 const patientMenuItems: SidebarItem[] = [
   {
     title: 'Dashboard',
-    href: '/patient/dashboard',
+    href: '/patient',
     icon: LayoutDashboard,
   },
   {
@@ -58,10 +81,10 @@ const patientMenuItems: SidebarItem[] = [
   },
 ];
 
-export function PatientSidebar() {
+export function PatientSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
-  const { user, logout, timeRemaining } = useAuth();
-
+  const { user, logout, timeRemaining, isLoading } = useAuth();
+  
   const formatTimeRemaining = (ms: number | null) => {
     if (!ms) return 'N/A';
     const minutes = Math.floor(ms / 1000 / 60);
@@ -71,65 +94,150 @@ export function PatientSidebar() {
   };
 
   return (
-    <aside className="w-64 h-screen bg-card border-r border-border flex flex-col">
-      {/* Header */}
-      <div className="p-6 border-b border-border">
-        <div className="flex items-center gap-2">
-          <Heart className="w-6 h-6 text-primary" />
-          <h2 className="text-lg font-semibold">Patient Portal</h2>
-        </div>
-        {user && (
-          <div className="mt-3 p-3 bg-muted/50 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <User className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium truncate">{user.name}</span>
-            </div>
-            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-            {timeRemaining !== null && (
-              <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-                <Clock className="w-3 h-3" />
-                <span>Session: {formatTimeRemaining(timeRemaining)}</span>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {patientMenuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
-          
-          return (
-            <Link key={item.href} href={item.href}>
-              <div
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
-                  'hover:bg-accent hover:text-accent-foreground',
-                  isActive && 'bg-accent text-accent-foreground font-medium'
-                )}
-              >
-                <Icon className="w-5 h-5" />
-                <span className="flex-1">{item.title}</span>
-                {isActive && <ChevronRight className="w-4 h-4" />}
-              </div>
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Footer */}
-      <div className="p-4 border-t border-border">
-        <Button
-          variant="outline"
-          className="w-full justify-start gap-2"
-          onClick={() => logout()}
-        >
-          <LogOut className="w-4 h-4" />
-          Logout
-        </Button>
-      </div>
-    </aside>
+    <Sidebar variant="inset" collapsible="icon" className="border-r-0" {...props}>
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild>
+              <Link href="/patient">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-teal-600 text-white">
+                  <Heart className="size-5 fill-current" />
+                </div>
+                <div className="flex flex-col gap-0.5 leading-none">
+                  <span className="font-bold text-base tracking-tight text-teal-900 dark:text-teal-100">MediTrack Pro</span>
+                  <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Patient Portal</span>
+                </div>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+      
+      <SidebarContent>
+        <SidebarMenu className="gap-2 px-2">
+          {isLoading ? (
+             Array.from({ length: 6 }).map((_, index) => (
+                <SidebarMenuItem key={index}>
+                    <SidebarMenuSkeleton showIcon />
+                </SidebarMenuItem>
+             ))
+          ) : (
+            patientMenuItems.map((item) => {
+               const Icon = item.icon;
+               const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+               return (
+                 <SidebarMenuItem key={item.href}>
+                   <SidebarMenuButton 
+                     asChild 
+                     isActive={isActive} 
+                     tooltip={item.title}
+                     className={cn(
+                       "transition-all duration-200 ease-in-out min-h-12",
+                       isActive 
+                          ? "bg-teal-50 text-teal-700 shadow-sm dark:bg-teal-900/20 dark:text-teal-300 font-semibold" 
+                          : "hover:bg-slate-100 text-slate-600 dark:text-slate-400 dark:hover:bg-slate-800"
+                     )}
+                   >
+                     <Link href={item.href} className="flex items-center gap-3">
+                       <Icon className={cn("size-4", isActive ? "stroke-[2.5px]" : "stroke-2")} />
+                       <span>{item.title}</span>
+                     </Link>
+                   </SidebarMenuButton>
+                 </SidebarMenuItem>
+               );
+            })
+          )}
+        </SidebarMenu>
+      </SidebarContent>
+      
+      <SidebarFooter className="border-t border-border/50 p-2">
+          {isLoading ? (
+            <SidebarMenu>
+              <SidebarMenuItem>
+                 <SidebarMenuSkeleton showIcon />
+              </SidebarMenuItem>
+            </SidebarMenu>
+          ) : user && (
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <SidebarMenuButton
+                        size="lg"
+                        className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground hover:bg-slate-100 dark:hover:bg-slate-800"
+                        >
+                        <Avatar className="h-8 w-8 rounded-lg border border-border">
+                             <AvatarImage src={user.prefs?.avatar as string} alt={user.name} />
+                            <AvatarFallback className="rounded-lg">
+                                {user.name.charAt(0)}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className="grid flex-1 text-left text-sm leading-tight">
+                            <span className="truncate font-semibold">{user.name}</span>
+                            <span className="truncate text-xs">{user.email}</span>
+                        </div>
+                        <ChevronsUpDown className="ml-auto size-4" />
+                        </SidebarMenuButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                        className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                        side="bottom"
+                        align="end"
+                        sideOffset={4}
+                    >
+                        <DropdownMenuLabel className="p-0 font-normal">
+                        <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                            <Avatar className="h-8 w-8 rounded-lg">
+                            <AvatarImage src={user.prefs?.avatar as string} alt={user.name} />
+                            <AvatarFallback className="rounded-lg">
+                                {user.name.charAt(0)}
+                            </AvatarFallback>
+                            </Avatar>
+                            <div className="grid flex-1 text-left text-sm leading-tight">
+                            <span className="truncate font-semibold">{user.name}</span>
+                            <span className="truncate text-xs">{user.email}</span>
+                            </div>
+                        </div>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuGroup>
+                          <DropdownMenuItem>
+                            <ShieldCheck className="mr-2 size-4" />
+                            <span>My Insurance</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuGroup>
+                          <DropdownMenuItem>
+                            <Settings className="mr-2 size-4" />
+                            <span>Profile Settings</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <CreditCard className="mr-2 size-4" />
+                            <span>Billing & Payments</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Bell className="mr-2 size-4" />
+                            <span>Notifications</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                        <DropdownMenuSeparator />
+                         <DropdownMenuItem disabled>
+                             <Clock className="mr-2 size-4" />
+                             <span>Session: {formatTimeRemaining(timeRemaining)}</span>
+                        </DropdownMenuItem>
+                         <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => logout()}>
+                        <LogOut className="mr-2 size-4" />
+                        Log out
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          )}
+      </SidebarFooter>
+      <SidebarRail />
+    </Sidebar>
   );
 }

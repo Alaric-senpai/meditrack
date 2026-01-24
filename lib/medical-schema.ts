@@ -8,7 +8,7 @@ export enum MedicalRoles {
   PATIENT = "patient",
   DOCTOR = "doctor",
   NURSE = "nurse",
-  LAB_TECHNICIAN = "lab_technician",
+  LAB_TECHNICIAN = "lab-tech",
   PHARMACIST = "pharmacist",
   ADMIN = "admin"
 }

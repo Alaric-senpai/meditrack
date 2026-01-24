@@ -21,11 +21,17 @@ export const appwritecfg = {
         labResults: process.env.NEXT_PUBLIC_APPWRITE_LAB_RESULTS_TABLE_ID!,
         prescriptions: process.env.NEXT_PUBLIC_APPWRITE_PRESCRIPTIONS_TABLE_ID!,
         auditLogs: process.env.NEXT_PUBLIC_APPWRITE_AUDIT_LOGS_TABLE_ID!,
+        doctors: process.env.NEXT_PUBLIC_APPWRITE_DOCTORS_TABLE_ID!,
+        nurses: process.env.NEXT_PUBLIC_APPWRITE_NURSES_TABLE_ID!,
+        departments: process.env.NEXT_PUBLIC_APPWRITE_DEPARTMENTS_TABLE_ID!,
+        lab_technicians: process.env.NEXT_PUBLIC_APPWRITE_LAB_TECHNICIANS_TABLE_ID!,
+        pharmacists: process.env.NEXT_PUBLIC_APPWRITE_PHARMACISTS_TABLE_ID!,
     },
     storage: {
         // Storage buckets
         medicalFiles: process.env.NEXT_PUBLIC_APPWRITE_MEDICAL_FILES_BUCKET_ID!,
         labReports: process.env.NEXT_PUBLIC_APPWRITE_LAB_REPORTS_BUCKET_ID!,
         patientDocuments: process.env.NEXT_PUBLIC_APPWRITE_PATIENT_DOCUMENTS_BUCKET_ID!,
+        userDocuments: process.env.NEXT_PUBLIC_APPWRITE_USER_DOCUMENTS_BUCKET_ID!,
     }
 }

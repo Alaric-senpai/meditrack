@@ -3,6 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
+import { cookies } from "next/headers";
+import { DebugProvider } from "@/components/debug/debug-context";
+import { DebugPanel } from "@/components/debug/debug-panel";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,11 +36,16 @@ export const metadata: Metadata = {
 
 };
 
-export default function RootLayout({
+import { Toaster } from "@/components/ui/sonner";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const allCookies = cookieStore.getAll();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -51,8 +59,11 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <AuthProvider>
-
-             {children}
+              <DebugProvider>
+                {children}
+                <Toaster position="top-right" richColors />
+                <DebugPanel cookies={allCookies} />
+              </DebugProvider>
             </AuthProvider>
           </ThemeProvider>
 

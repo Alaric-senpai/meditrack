@@ -6,9 +6,10 @@ import { getCurrentUser, Logout, validateSession } from '@/actions/auth.actions'
 import { getSessionStatus, checkAndManageSession } from '@/lib/session-manager';
 import { useRouter, usePathname } from 'next/navigation';
 import { MedicalRole, parseRole, getDefaultRouteForRole } from '@/lib/rbac';
+import { getRoleCookie } from '@/server/cookies';
 
 // Medical role type for the auth context
-type AuthRole = MedicalRole | 'client';
+type AuthRole = MedicalRole;
 
 interface AuthContextType {
     user: Models.User | null;
@@ -55,8 +56,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 setIsAuthenticated(true);
                 
                 // Determine user role from prefs using parseRole
-                const userRole = parseRole(result.user.prefs?.role as string);
-                setUserRole(userRole);
+                const userRole = await getRoleCookie()
+                setUserRole(userRole as AuthRole);
             } else {
                 setUser(null);
                 setIsAuthenticated(false);
@@ -92,9 +93,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     setUser(null);
                     
                     // Redirect to login if on protected route
-                    if (!pathname?.startsWith('/(auth)') && pathname !== '/') {
-                        router.push('/login?error=session_expired');
-                    }
+                //     if (!pathname?.startsWith('/(auth)') && pathname !== '/') {
+                //         router.push('/login?error=session_expired');
+                //     }
                 }
             }
         } catch (error) {

@@ -51,7 +51,7 @@ const formAction = useAction(LoginserverAction, {
           break;
         case 'patient':
         default:
-          router.push('/dashboard');
+          router.push('/patient');
           break;
       }
     }, 1500);

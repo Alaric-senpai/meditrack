@@ -139,11 +139,11 @@ const PERMISSIONS: Record<MedicalRole, Record<Resource, Action[]>> = {
 
 // Route mappings for each role
 export const ROLE_ROUTES: Record<MedicalRole, string> = {
-    [MedicalRole.PATIENT]: "/patient/dashboard",
-    [MedicalRole.DOCTOR]: "/clinician/dashboard",
-    [MedicalRole.NURSE]: "/clinician/dashboard",
-    [MedicalRole.LAB_TECHNICIAN]: "/lab/dashboard",
-    [MedicalRole.PHARMACIST]: "/pharmacy/dashboard",
+    [MedicalRole.PATIENT]: "/patient",
+    [MedicalRole.DOCTOR]: "/clinician",
+    [MedicalRole.NURSE]: "/clinician",
+    [MedicalRole.LAB_TECHNICIAN]: "/lab",
+    [MedicalRole.PHARMACIST]: "/pharmacy",
     [MedicalRole.ADMIN]: "/admin",
 };
 
@@ -205,7 +205,7 @@ export function canAccessRoute(role: MedicalRole, pathname: string): boolean {
  * Get the default redirect route for a role
  */
 export function getDefaultRouteForRole(role: MedicalRole): string {
-    return ROLE_ROUTES[role] || "/client/dashboard";
+    return ROLE_ROUTES[role] || "/patient";
 }
 
 /**

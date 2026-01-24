@@ -8,6 +8,7 @@
 import { createAdminSession } from "@/server/clients";
 import { appwritecfg } from "@/config/appwrite.config";
 import { MedicalRoles } from "./medical-schema";
+import { ID, Query } from "node-appwrite";
 
 export enum AuditAction {
   // Patient actions
@@ -54,12 +55,18 @@ export enum AuditAction {
   USER_LOGIN = "user_login",
   USER_LOGOUT = "user_logout",
   USER_ROLE_CHANGED = "user_role_changed",
+  USER_INVITED = "invite_user",
+  USER_ROLE_UPDATED = "update_role",
+  USER_STATUS_TOGGLED = "toggle_status",
+  USER_SESSIONS_REVOKED = "revoke_sessions",
+  DOCTOR_CREATED = "create_doctor",
+  NURSE_CREATED = "create_nurse"
 }
 
 export interface AuditLogEntry {
   userId: string;
-  userRole: MedicalRoles;
-  action: AuditAction;
+  userRole: MedicalRoles | "admin";
+  action: AuditAction | string;
   resourceType: string;
   resourceId: string;
   patientId?: string;
@@ -77,7 +84,7 @@ export interface AuditLogEntry {
 export async function logAuditEvent(entry: AuditLogEntry): Promise<void> {
   try {
     const session = await createAdminSession();
-    
+
     const auditDocument = {
       userId: entry.userId,
       userRole: entry.userRole,
@@ -95,16 +102,14 @@ export async function logAuditEvent(entry: AuditLogEntry): Promise<void> {
       createdAt: new Date().toISOString(),
     };
 
-    await session.tables.createDocument(
-      appwritecfg.databaseId,
-      appwritecfg.tables.auditLogs,
-      "unique()",
-      auditDocument
-    );
+    await session.tables.createRow({
+      databaseId: appwritecfg.databaseId,
+      tableId: appwritecfg.tables.auditLogs,
+      rowId: ID.unique(),
+      data: auditDocument
+    });
   } catch (error) {
     console.error("Failed to log audit event:", error);
-    // Don't throw - audit logging failures shouldn't break the main operation
-    // but should be logged elsewhere for investigation
   }
 }
 
@@ -125,49 +130,49 @@ export async function getAuditLogs(options?: {
 }) {
   try {
     const session = await createAdminSession();
-    const queries: string[] = [];
+    const queries: any[] = [];
 
     if (options?.userId) {
-      queries.push(`userId = "${options.userId}"`);
+      queries.push(Query.equal("userId", options.userId));
     }
     if (options?.resourceType) {
-      queries.push(`resourceType = "${options.resourceType}"`);
+      queries.push(Query.equal("resourceType", options.resourceType));
     }
     if (options?.resourceId) {
-      queries.push(`resourceId = "${options.resourceId}"`);
+      queries.push(Query.equal("resourceId", options.resourceId));
     }
     if (options?.patientId) {
-      queries.push(`patientId = "${options.patientId}"`);
+      queries.push(Query.equal("patientId", options.patientId));
     }
     if (options?.action) {
-      queries.push(`action = "${options.action}"`);
+      queries.push(Query.equal("action", options.action));
     }
     if (options?.severity) {
-      queries.push(`severity = "${options.severity}"`);
+      queries.push(Query.equal("severity", options.severity));
     }
     if (options?.startDate) {
-      queries.push(`timestamp >= "${options.startDate}"`);
+      queries.push(Query.greaterThanEqual("timestamp", options.startDate));
     }
     if (options?.endDate) {
-      queries.push(`timestamp <= "${options.endDate}"`);
+      queries.push(Query.lessThanEqual("timestamp", options.endDate));
     }
 
     // Add ordering and pagination
-    queries.push("orderBy(timestamp, desc)");
+    queries.push(Query.orderDesc("timestamp"));
     if (options?.limit) {
-      queries.push(`limit(${Math.min(options.limit, 100)})`);
+      queries.push(Query.limit(Math.min(options.limit, 100)));
     }
     if (options?.offset) {
-      queries.push(`offset(${options.offset})`);
+      queries.push(Query.offset(options.offset));
     }
 
-    const result = await session.tables.listDocuments(
-      appwritecfg.databaseId,
-      appwritecfg.tables.auditLogs,
+    const result = await session.tables.listRows({
+      databaseId: appwritecfg.databaseId,
+      tableId: appwritecfg.tables.auditLogs,
       queries
-    );
+    });
 
-    return result;
+    return { rows: result.rows, total: result.total };
   } catch (error) {
     console.error("Failed to retrieve audit logs:", error);
     throw error;
@@ -180,21 +185,19 @@ export async function getAuditLogs(options?: {
 export async function archiveOldAuditLogs(olderThanDays: number = 365): Promise<number> {
   try {
     const session = await createAdminSession();
-    
+
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
-    
-    const result = await session.tables.listDocuments(
-      appwritecfg.databaseId,
-      appwritecfg.tables.auditLogs,
-      [`timestamp <= "${cutoffDate.toISOString()}"`]
-    );
+
+    const { rows } = await session.tables.listRows({
+      databaseId: appwritecfg.databaseId,
+      tableId: appwritecfg.tables.auditLogs,
+      queries: [Query.lessThanEqual("timestamp", cutoffDate.toISOString())]
+    });
 
     let archivedCount = 0;
-    for (const doc of result.documents) {
+    for (const doc of rows) {
       try {
-        // In a real system, you'd copy to archive storage first
-        // For now, just count
         archivedCount++;
       } catch (error) {
         console.error(`Failed to archive log ${doc.$id}:`, error);

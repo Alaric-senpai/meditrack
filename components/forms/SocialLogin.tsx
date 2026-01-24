@@ -45,8 +45,8 @@ interface SocialLoginProps {
 export function SocialLogin({ mode='login', showAllProviders = false }: SocialLoginProps) {
   const { execute, isExecuting } = useAction(OAuthServerAction, {
     onSuccess: ({ data }) => {
-      if (data?.redirectUrl) {
-         window.location.href = data.redirectUrl;
+      if (data && 'redirectUrl' in data) {
+         window.location.href = data.redirectUrl as string;
       }
     },
     onError: (error) => {

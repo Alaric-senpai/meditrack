@@ -117,6 +117,6 @@ export const deleteRoleCookie = async()=>{
 /**
  * get the saved user role
  */
-export const getRoleCookie = async()=>{
-   return await getCookie(ROLE_COOKIE)
+export const getRoleCookie = async():Promise<UserRole| undefined>=>{
+   return await getCookie(ROLE_COOKIE) as any
 }
